@@ -29,6 +29,8 @@
 #include <util/platform.h>
 #include <util/threading.h>
 #include <QTimer>
+
+#undef UNUSED_PARAMETER
 #endif
 
 #define UNUSED_PARAMETER(x) \
