@@ -188,7 +188,7 @@ bool BrowserSource::CreateBrowser()
 #ifdef ENABLE_BROWSER_SHARED_TEXTURE
 		if (hwaccel) {
 			obs_enter_graphics();
-			tex_sharing_avail = gs_shared_texture_available();
+			tex_sharing_avail = true; //gs_shared_texture_available();
 			obs_leave_graphics();
 		}
 #else
