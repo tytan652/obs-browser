@@ -31,8 +31,8 @@
 #include <IOSurface/IOSurface.h>
 #endif
 
-#if !defined(_WIN32) && !defined(__APPLE__) && CHROME_VERSION_BUILD > 6337
-#include <libdrm/drm_fourcc.h>
+#if !defined(_WIN32) && !defined(__APPLE__)
+#include "drm-format.hpp"
 #endif
 
 inline bool BrowserClient::valid() const
@@ -393,31 +393,15 @@ void BrowserClient::OnAcceleratedPaint(CefRefPtr<CefBrowser>,
 		return;
 	}
 
-#if !defined(_WIN32) && !defined(__APPLE__) && CHROME_VERSION_BUILD > 6337
+#if !defined(_WIN32) && !defined(__APPLE__)
 	if (info.plane_count == 0)
 		return;
 
-	enum gs_color_format gs_format = GS_UNKNOWN;
-	uint32_t drm_format = 0;
+	struct obs_cef_video_format format =
+		obs_cef_format_from_cef_type(info.format);
 
-	switch (info.format) {
-	case CEF_COLOR_TYPE_RGBA_8888:
-		gs_format = GS_RGBA_UNORM;
-		drm_format = DRM_FORMAT_ABGR8888;
-		break;
-
-	case CEF_COLOR_TYPE_BGRA_8888:
-		gs_format = GS_BGRA_UNORM;
-		drm_format = DRM_FORMAT_ARGB8888;
-		break;
-
-	default:
-		blog(LOG_ERROR, "[obs-browser]: Unsupported color format");
+	if (format.gs_format == GS_UNKNOWN)
 		return;
-	}
-
-	assert(gs_format != GS_UNKNOWN);
-	assert(drm_format != 0);
 
 	uint32_t *strides =
 		(uint32_t *)alloca(info.plane_count * sizeof(uint32_t));
@@ -473,10 +457,10 @@ void BrowserClient::OnAcceleratedPaint(CefRefPtr<CefBrowser>,
 #elif defined(__WIN32)
 	bs->texture =
 		gs_texture_open_shared((uint32_t)(uintptr_t)shared_handle);
-#elif CHROME_VERSION_BUILD > 6337
+#else
 	bs->texture = gs_texture_create_from_dmabuf(
-		bs->width, bs->height, drm_format, gs_format, info.plane_count,
-		fds, strides, offsets,
+		bs->width, bs->height, format.drm_format, format.gs_format,
+		info.plane_count, fds, strides, offsets,
 		info.modifier != DRM_FORMAT_MOD_INVALID ? modifiers : NULL);
 #endif
 	UpdateExtraTexture();
