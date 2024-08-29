@@ -1,8 +1,9 @@
 find_package(X11 REQUIRED)
+find_package(Libdrm REQUIRED)
 
-target_compile_definitions(obs-browser PRIVATE ENABLE_BROWSER_QT_LOOP)
+target_compile_definitions(obs-browser PRIVATE ENABLE_BROWSER_QT_LOOP ENABLE_BROWSER_SHARED_TEXTURE)
 
-target_link_libraries(obs-browser PRIVATE CEF::Wrapper CEF::Library X11::X11)
+target_link_libraries(obs-browser PRIVATE CEF::Wrapper CEF::Library X11::X11 Libdrm::Libdrm)
 set_target_properties(obs-browser PROPERTIES BUILD_RPATH "$ORIGIN/" INSTALL_RPATH "$ORIGIN/")
 
 add_executable(browser-helper)

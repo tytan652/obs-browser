@@ -23,11 +23,16 @@
 #include <obs-frontend-api.h>
 #include <obs.hpp>
 #include <util/platform.h>
+#include <util/util.hpp>
 #include <QApplication>
 #include <QThread>
 #include <QToolTip>
 #if defined(__APPLE__) && CHROME_VERSION_BUILD > 4430
 #include <IOSurface/IOSurface.h>
+#endif
+
+#if !defined(_WIN32) && !defined(__APPLE__) && CHROME_VERSION_BUILD > 6337
+#include <libdrm/drm_fourcc.h>
 #endif
 
 inline bool BrowserClient::valid() const
@@ -388,6 +393,51 @@ void BrowserClient::OnAcceleratedPaint(CefRefPtr<CefBrowser>,
 		return;
 	}
 
+#if !defined(_WIN32) && !defined(__APPLE__) && CHROME_VERSION_BUILD > 6337
+	if (info.plane_count == 0)
+		return;
+
+	enum gs_color_format gs_format = GS_UNKNOWN;
+	uint32_t drm_format = 0;
+
+	switch (info.format) {
+	case CEF_COLOR_TYPE_RGBA_8888:
+		gs_format = GS_RGBA;
+		drm_format = DRM_FORMAT_ABGR8888;
+		break;
+
+	case CEF_COLOR_TYPE_BGRA_8888:
+		gs_format = GS_BGRA;
+		drm_format = DRM_FORMAT_ARGB8888;
+		break;
+
+	default:
+		blog(LOG_ERROR, "[obs-browser]: Unsupported color format");
+		return;
+	}
+
+	assert(gs_format != GS_UNKNOWN);
+	assert(drm_format != 0);
+
+	uint32_t *strides =
+		(uint32_t *)alloca(info.plane_count * sizeof(uint32_t));
+	uint32_t *offsets =
+		(uint32_t *)alloca(info.plane_count * sizeof(uint32_t));
+	uint64_t *modifiers =
+		(uint64_t *)alloca(info.plane_count * sizeof(uint64_t));
+	int *fds = (int *)alloca(info.plane_count * sizeof(int));
+
+	for (size_t i = 0; i < kAcceleratedPaintMaxPlanes; i++) {
+		auto *plane = &info.planes[i];
+
+		strides[i] = plane->stride;
+		offsets[i] = plane->offset;
+		fds[i] = plane->fd;
+
+		modifiers[i] = info.modifier;
+	}
+#endif
+
 #if !defined(_WIN32) && CHROME_VERSION_BUILD < 6367
 	if (shared_handle == bs->last_handle)
 		return;
@@ -420,18 +470,22 @@ void BrowserClient::OnAcceleratedPaint(CefRefPtr<CefBrowser>,
 	//if (bs->texture)
 	//	gs_texture_acquire_sync(bs->texture, 1, INFINITE);
 
-#else
+#elif defined(__WIN32)
 	bs->texture =
 		gs_texture_open_shared((uint32_t)(uintptr_t)shared_handle);
+#elif CHROME_VERSION_BUILD > 6337
+	bs->texture = gs_texture_create_from_dmabuf(
+		bs->width, bs->height, drm_format, gs_format, info.plane_count,
+		fds, strides, offsets, modifiers);
 #endif
 	UpdateExtraTexture();
 	obs_leave_graphics();
 
 #if defined(__APPLE__) && CHROME_VERSION_BUILD >= 6367
 	bs->last_handle = info.shared_texture_io_surface;
-#elif CHROME_VERSION_BUILD >= 6367
+#elif defined(_WIN32) && CHROME_VERSION_BUILD >= 6367
 	bs->last_handle = info.shared_texture_handle;
-#else
+#elif defined(__APPLE__) && defined(_WIN32)
 	bs->last_handle = shared_handle;
 #endif
 }
