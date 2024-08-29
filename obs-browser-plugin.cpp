@@ -747,7 +747,7 @@ static void check_hwaccel_support(void)
 #else
 static void check_hwaccel_support(void)
 {
-	return;
+	return; // TODO: Blacklist NVIDIA?…
 }
 #endif
 #endif
