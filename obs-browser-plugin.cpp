@@ -786,7 +786,7 @@ bool obs_module_load(void)
 
 #ifdef ENABLE_BROWSER_SHARED_TEXTURE
 	OBSDataAutoRelease private_data = obs_get_private_data();
-	hwaccel = obs_data_get_bool(private_data, "BrowserHWAccel");
+	hwaccel = true; //obs_data_get_bool(private_data, "BrowserHWAccel");
 
 	if (hwaccel) {
 		check_hwaccel_support();
