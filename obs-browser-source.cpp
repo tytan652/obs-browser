@@ -693,7 +693,7 @@ void BrowserSource::Render()
 		const char *tech;
 		if (linear_sample) {
 			gs_effect_set_texture_srgb(image, draw_texture);
-			tech = "Draw";
+			tech = "DrawSrgbDecompress";
 		} else {
 			gs_effect_set_texture(image, draw_texture);
 			tech = "DrawSrgbDecompress";
